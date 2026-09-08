@@ -1,0 +1,32 @@
+
+Morning all! - i have lost my voice!!
+
+Today just continue lab work...
+
+
+
+
+
+
+
+- Finish Task1 pipeline.
+
+- Add a trivy scan (filesystem or image) and archive the results (guide in content) 
+
+- Convert project to use a professional Dockerfile (i will send) and improved verison
+  of the app. Take time to read through and understand it. 
+
+- Add a unit test to the pipeline (i will send). - think carefully about the set-up. 
+  Also use CatchError() on this stage - use snippets generator to help. 
+
+- Try to add a sonarqube scan - follow the guide carfully as its a hard set up. 
+
+- Make the repo private and Tag and push your images to your Dockerhub account.
+  You will need to add credentials for both. 
+
+- Add a web-hook to the project and repo so any changes automatically trigger a rebuild. 
+
+
+
+Stretch Goals:
+  - 
