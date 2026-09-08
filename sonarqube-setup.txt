@@ -21,18 +21,18 @@ Inbound rules:
 
 For the Jenkins rule, use the Jenkins security group if possible. Alternatively, use the Jenkins private IP as a `/32`, for example:
 
-```text
+
 172.31.10.20/32
-```
+
 
 Do **not** open port 9000 to `0.0.0.0/0`.
 
 Keep a note of both:
 
-```text
+
 SONAR PUBLIC IP:
 SONAR PRIVATE IP:
-```
+
 
 ---
 
@@ -40,19 +40,19 @@ SONAR PRIVATE IP:
 
 SSH into the new SonarQube EC2.
 
-```bash
+
 sudo apt update
 sudo apt install -y docker.io docker-compose-v2
 
 sudo systemctl enable --now docker
-```
+
 
 Check:
 
-```bash
+
 sudo docker --version
 sudo docker compose version
-```
+
 
 ---
 
@@ -60,73 +60,71 @@ sudo docker compose version
 
 Run:
 
-```bash
+
 sudo sysctl -w vm.max_map_count=524288
 sudo sysctl -w fs.file-max=131072
-```
+
 
 Make these settings persistent:
 
-```bash
+
 sudo tee /etc/sysctl.d/99-sonarqube.conf > /dev/null <<EOF
 vm.max_map_count=524288
 fs.file-max=131072
 EOF
-```
+
 
 Apply:
 
-```bash
 sudo sysctl --system
-```
+
 
 Check:
 
-```bash
+
 sysctl vm.max_map_count
 sysctl fs.file-max
-```
+
 
 You should see at least:
 
-```text
+
 vm.max_map_count = 524288
 fs.file-max = 131072
-```
+
 
 ---
 
 # 4. Create the SonarQube project directory
 
-```bash
+
 mkdir ~/sonarqube
 cd ~/sonarqube
-```
+
 
 Create:
 
-```text
+
 .env
-```
+
 
 Add:
 
-```env
 POSTGRES_USER=sonar
 POSTGRES_PASSWORD=StrongPassword123!
 POSTGRES_DB=sonarqube
 
 SONAR_JDBC_USERNAME=sonar
 SONAR_JDBC_PASSWORD=StrongPassword123!
-```
+
 
 This password is for the classroom lab only. Do not reuse it for a real system.
 
 Protect the file:
 
-```bash
+
 chmod 600 .env
-```
+
 
 ---
 
@@ -134,13 +132,13 @@ chmod 600 .env
 
 Create:
 
-```text
+
 docker-compose.yaml
-```
+
 
 Add:
 
-```yaml
+
 services:
   sonarqube:
     image: sonarqube:community
@@ -198,7 +196,7 @@ volumes:
   sonarqube_extensions:
   sonarqube_logs:
   postgresql_data:
-```
+
 
 ---
 
@@ -206,23 +204,23 @@ volumes:
 
 From inside `~/sonarqube`:
 
-```bash
+
 sudo docker compose up -d
-```
+
 
 Check the containers:
 
-```bash
+
 sudo docker compose ps
-```
+
 
 You should eventually see both PostgreSQL and SonarQube running.
 
 To watch SonarQube starting:
 
-```bash
+
 sudo docker compose logs -f sonarqube
-```
+
 
 Use `Ctrl+C` to stop watching the logs. This does **not** stop SonarQube.
 
@@ -232,22 +230,22 @@ Use `Ctrl+C` to stop watching the logs. This does **not** stop SonarQube.
 
 In your browser go to:
 
-```text
+
 http://SONAR-PUBLIC-IP:9000
-```
+
 
 For example:
 
-```text
+
 http://54.123.45.67:9000
-```
+
 
 Initial login:
 
-```text
+
 username: admin
 password: admin
-```
+
 
 Change the password when prompted.
 
@@ -269,17 +267,17 @@ Copy the token immediately.
 
 In Jenkins add a new credential:
 
-```text
+
 Kind: Secret text
 Secret: <your SonarQube token>
 ID: sonarqube-token
-```
+
 
 The ID must be exactly:
 
-```text
+
 sonarqube-token
-```
+
 
 ---
 
@@ -289,21 +287,20 @@ Use the **SonarQube PRIVATE IP**, not its public IP.
 
 From the Jenkins machine/node, test:
 
-```bash
+
 curl -s -o /dev/null -w "%{http_code}\n" http://SONAR-PRIVATE-IP:9000
-```
+
 
 For example:
 
-```bash
+
 curl -s -o /dev/null -w "%{http_code}\n" http://172.31.35.75:9000
-```
+
 
 Expected result:
 
-```text
 200
-```
+
 
 If you do not receive `200`, check:
 
@@ -314,9 +311,9 @@ If you do not receive `200`, check:
 
 The Jenkins node which runs the pipeline must also be capable of running:
 
-```bash
+
 docker run
-```
+
 
 because we will run the SonarScanner using Docker.
 
@@ -329,7 +326,7 @@ Replace both IP addresses below.
 * `SONAR_HOST_URL` = SonarQube **private IP** — Jenkins uses this.
 * `SONAR_PUBLIC_URL` = SonarQube **public IP** — you use this in your browser.
 
-```groovy
+
 pipeline {
     agent any
 
@@ -373,7 +370,7 @@ pipeline {
         }
     }
 }
-```
+
 
 Run the pipeline.
 
@@ -381,9 +378,9 @@ The scanner should send the analysis to SonarQube.
 
 Open:
 
-```text
+
 http://SONAR-PUBLIC-IP:9000
-```
+
 
 You should now be able to see the `flask-app` project and inspect:
 
