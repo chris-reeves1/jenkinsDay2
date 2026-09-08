@@ -130,25 +130,107 @@ pipeline{
                     }
                 }
             }
+            stage("optional slim logic"){
+                when{
+                    expression { return params.USE_SLIM_IMAGE}
+                }
+                steps{
+                    sh """
+                        slim build \
+                        --target ${ORIGINAL_IMAGE} \
+                        --tag ${SLIM_IMAGE} \
+                        --http-probe=false
+                    """
+                }
+            }
+            stage("select final image"){
+                steps{
+                    script{
+                        if (params.USE_SLIM_IMAGE) {
+                            env.FINAL_IMAGE = env.SLIM_IMAGE
+                        } else {
+                            env.FINAL_IMAGE = env.ORIGINAL_IMAGE
+                        }
+                    }
+
+                }
+            }
+            stage("Parallel post-build actions"){
+                parallel{
+                    stage("image build metadata"){
+                        steps{
+                            sh """
+                                docker inspect ${FINAL_IMAGE} > docker_inspect.json
+                                docker history ${FINAL_IMAGE} > docker_history.txt
+                                docker image ${FINAL_IMAGE} > docker_image.txt
+                            """
+                        }
+                        post{
+                            always{
+                                archiveArtifacts artifacts: "docker_inspect.json,docker_history.txt,docker_image.txt", allowEmptyArchive:true
+                            }
+                        }
+                    }
+                    stage("trivy image scan"){
+                        steps{
+                            sh """
+                                trivy image --cache-dir /tmp/trivycache-image --format json -o trivy-image-report.json ${FINAL_IMAGE}
+                            """
+                        }
+                        post{
+                            always{
+                                archiveArtifacts artifacts: "trivy-image-report.json", allowEmptyArchive:true
+                            }
+                        }
+                    }
+                    stage("generate SBOM"){
+                        steps{
+                            sh """
+                                trivy image \
+                                --cache-dir /tmp/trivycache-sbom \
+                                --format cyclonedx \
+                                --output flask-app-sbom.cdx.json \
+                            ${FINAL_IMAGE}
+                            """
+                        }
+                        post{
+                            always{
+                                archiveArtifacts artifacts: "flask-app-sbom.cdx.json", allowEmptyArchive:true
+                            }
+                        }
+                    }
+                }
+                stage("size gate"){
+                    steps{
+                        script{
+                            def sizeBytes = sh(
+                                script: "docker image inspect ${FINAL_IMAGE} --format='{{.Size}}'",
+                                returnStdout: true
+                            ).trim().toLong()
+
+                            def maxBytes = 200 * 1024 * 1024
+
+                            if (sizeBytes > maxBytes) {
+                                unstable("Image size threshold breached 200MB")
+                            }
+                        }
+                    }
+                }
+                stage("approval (manual - not best practice so remove eventually)"){
+                    steps{
+                        input message: "quality gate continue?", ok: "proceed"
+                    }
+                }
+            }
         }
     }
 
 
 
-//     - build metadata
 
-//     - parallel stage:
-//                 build flask-app
-//                 build nginx
 
-//     - conditional param slim image (experimental)
-//             if used we need a selector
 
-//     - parallel stage:
-//                 image scan
-//                 SBOM 
 
-//     - 200 mb size gate
 
 //     - manual approval gate? 
 
