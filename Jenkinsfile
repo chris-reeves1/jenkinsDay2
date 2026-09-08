@@ -43,7 +43,7 @@ pipeline{
                 }
                 stage("unit test(s)"){
                     steps{
-                        catchError(BuildResult: 'UNSTABLE', stageResult: 'UNSTABLE'){
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE'){
                            sh """
                                 python3 -m venv .venv
                                 . .venv/bin/activate
