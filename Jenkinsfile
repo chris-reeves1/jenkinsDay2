@@ -1,7 +1,7 @@
 pipeline{
     agent any
     environment{ 
-        DOCKERHUB_CREDENTIALS = credentials(dockerhub)
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub')
         IMAGE_TAG = "${BUILD_NUMBER}"
         NGINX_IMAGE = "mynginx:${BUILD_NUMBER}"
         ORIGINAL_IMAGE = "flask-app:${BUILD_NUMBER}-original"
@@ -10,7 +10,8 @@ pipeline{
         SOANR_HOST_URL = "http://172.31.23.181:9000"
         SONAR_PROJECT_KEY = "flask-app" 
     }
-    parameter{booleanParam(
+    parameters{
+        booleanParam(
             name: 'USE_SLIM_IMAGE',
             defaultValue: false,
             description: "An experimental slim build of the flask-app image - do not trust"
