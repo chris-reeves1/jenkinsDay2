@@ -1,0 +1,218 @@
+Today, just continue with your lab work. Work through the following in order.
+
+
+TASK 1 — FINISH THE PIPELINE
+
+Finish the Task 1 pipeline from the previous work.
+
+
+TASK 2 — TRIVY
+
+Add a Trivy scan to the pipeline.
+
+You can scan either the filesystem or the Docker image.
+
+Archive the Trivy results as a Jenkins artifact.
+
+There is a guide in the course content for this.
+
+
+TASK 3 — IMPROVED DOCKERFILE AND APP
+
+Convert the project to use the more professional Dockerfile and improved version of the application that I will send separately.
+
+Take some time to read through both files and understand what has changed rather than just replacing the old versions.
+
+
+TASK 4 — UNIT TESTING
+
+Add the unit test that I will send to the pipeline.
+
+Think carefully about what needs to be installed or configured before Jenkins can run the test.
+
+Use catchError() on this stage so that a failed test can mark the stage/build as UNSTABLE rather than immediately stopping the whole pipeline.
+
+Use the Jenkins Snippet Generator to help you construct the catchError() syntax.
+
+
+TASK 5 — SONARQUBE
+
+Try to add a SonarQube scan.
+
+Follow the SonarQube guide carefully. This is a harder setup, so take your time with it.
+
+
+TASK 6 — PRIVATE REPOSITORY AND DOCKER HUB
+
+Make your GitHub repository private.
+
+Tag your Docker image and push it to your own Docker Hub account.
+
+You will need to add the appropriate GitHub and Docker Hub credentials to Jenkins.
+
+
+TASK 7 — WEBHOOK
+
+Add a webhook between GitHub and Jenkins.
+
+The goal is that pushing a change to GitHub automatically triggers a new Jenkins build.
+
+
+========================================
+
+STRETCH TASKS
+
+========================================
+
+
+Only move onto these once the main tasks are complete.
+
+These are deliberately not fully guided exercises. You will need to research documentation, experiment, and work out how to integrate them into your own pipeline.
+
+Limited AI assistance is allowed for the stretch tasks.
+
+You can use AI to help explain documentation, understand errors, research approaches, or clarify concepts.
+
+Do not simply ask AI to generate the entire solution. The aim is to see how far you can extend the pipeline yourself.
+
+
+STRETCH — PARALLEL STAGES
+
+Research Jenkins parallel.
+
+Identify stages which do not depend on each other's output and see whether they can run simultaneously.
+
+For example, your filesystem security scan and unit tests may be able to run at the same time.
+
+
+STRETCH — BUILD METADATA
+
+Generate a JSON file containing useful information about each build.
+
+Possible information includes the Git commit hash, Git branch, Jenkins build number, Jenkins job name, Docker image name and Docker image tag.
+
+Archive the JSON file as a Jenkins artifact.
+
+
+STRETCH — AUTOMATED SMOKE TEST
+
+After starting the application, make Jenkins automatically test that it is responding.
+
+For example:
+
+curl http://localhost/health
+
+Do not assume that the application will become available instantly.
+
+Think about how Jenkins could retry several times before deciding that the deployment has failed.
+
+
+STRETCH — SBOM
+
+Use Trivy to generate a Software Bill of Materials (SBOM) for your final Docker image.
+
+Research the CycloneDX format.
+
+Archive the generated SBOM as a Jenkins artifact.
+
+
+STRETCH — DOCKER IMAGE METADATA
+
+Investigate commands such as:
+
+docker inspect
+docker history
+docker images
+
+Save useful information about the final image and archive it with the Jenkins build.
+
+
+STRETCH — IMAGE SIZE QUALITY GATE
+
+Find the size of the final Docker image programmatically.
+
+Set a maximum size, for example:
+
+200 MB
+
+If the image exceeds the limit, have Jenkins mark the build as UNSTABLE.
+
+Think about why image size might be something worth monitoring in a CI/CD pipeline.
+
+
+STRETCH — JENKINS PARAMETERS
+
+Research Jenkins build parameters.
+
+Add a parameter which changes how your pipeline behaves.
+
+For example, a Boolean parameter could enable or disable an optional stage.
+
+
+STRETCH — IMPROVED DOCKER TAGGING
+
+Do not rely only on:
+
+latest
+
+Publish a build-specific tag as well.
+
+For example:
+
+flask-app:42
+flask-app:latest
+
+You could use the Jenkins build number to generate the versioned tag.
+
+Think about why relying only on latest can cause problems.
+
+
+STRETCH — PIPELINE CLEANUP
+
+Improve the pipeline so that temporary containers and Docker networks are cleaned up whether the build succeeds, fails, becomes unstable, or is stopped.
+
+Research the Jenkins post section, particularly:
+
+post {
+    always {
+        // cleanup
+    }
+}
+
+
+========================================
+
+POST-POST STRETCH — EXPERIMENTAL: SLIM
+
+========================================
+
+
+ONLY try this after you have completed the main work and any other stretch tasks you want to attempt.
+
+This is experimental.
+
+Have a look at Slim (SlimToolkit):
+
+https://github.com/slimtoolkit/slim
+
+Slim analyses a Docker image and attempts to create a much smaller version containing only the files that the application appears to need.
+
+The basic idea is:
+
+slim build <image>
+
+Try creating a pipeline workflow which builds the normal Flask image, records its size, runs Slim against it, records the size of the new image, and compares the two.
+
+Most importantly, run the slimmed image afterwards and smoke-test it.
+
+A smaller image is NOT an improvement if the application no longer works.
+
+For an additional challenge, add a Jenkins Boolean parameter such as:
+
+USE_SLIM_IMAGE
+
+This could allow the pipeline to choose whether it uses the normal image or attempts the experimental Slim optimisation.
+
+Treat Slim as an experiment rather than a required production technique. Image-minification tools can remove files which the application later discovers it needs, particularly when applications load resources dynamically.
+
+Research it, experiment with it, compare the results, and make sure you understand what it has changed.

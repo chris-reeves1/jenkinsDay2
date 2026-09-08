@@ -1,0 +1,403 @@
+**UNTESTED RN - i will test and update if needed**
+
+# SonarQube + Jenkins
+
+## 1. Create the SonarQube EC2 instance
+
+Create a new EC2 instance with:
+
+* Instance type: `t3.large`
+* OS: Ubuntu 24.04
+* Key pair: usual class key
+* Storage: **30 GB**
+
+### Security Group
+
+Inbound rules:
+
+* TCP `22` — source: **your IP**
+* TCP `9000` — source: **your IP**
+* TCP `9000` — source: **Jenkins**
+
+For the Jenkins rule, use the Jenkins security group if possible. Alternatively, use the Jenkins private IP as a `/32`, for example:
+
+```text
+172.31.10.20/32
+```
+
+Do **not** open port 9000 to `0.0.0.0/0`.
+
+Keep a note of both:
+
+```text
+SONAR PUBLIC IP:
+SONAR PRIVATE IP:
+```
+
+---
+
+# 2. Install Docker and Docker Compose
+
+SSH into the new SonarQube EC2.
+
+```bash
+sudo apt update
+sudo apt install -y docker.io docker-compose-v2
+
+sudo systemctl enable --now docker
+```
+
+Check:
+
+```bash
+sudo docker --version
+sudo docker compose version
+```
+
+---
+
+# 3. Configure the Linux host for SonarQube
+
+Run:
+
+```bash
+sudo sysctl -w vm.max_map_count=524288
+sudo sysctl -w fs.file-max=131072
+```
+
+Make these settings persistent:
+
+```bash
+sudo tee /etc/sysctl.d/99-sonarqube.conf > /dev/null <<EOF
+vm.max_map_count=524288
+fs.file-max=131072
+EOF
+```
+
+Apply:
+
+```bash
+sudo sysctl --system
+```
+
+Check:
+
+```bash
+sysctl vm.max_map_count
+sysctl fs.file-max
+```
+
+You should see at least:
+
+```text
+vm.max_map_count = 524288
+fs.file-max = 131072
+```
+
+---
+
+# 4. Create the SonarQube project directory
+
+```bash
+mkdir ~/sonarqube
+cd ~/sonarqube
+```
+
+Create:
+
+```text
+.env
+```
+
+Add:
+
+```env
+POSTGRES_USER=sonar
+POSTGRES_PASSWORD=StrongPassword123!
+POSTGRES_DB=sonarqube
+
+SONAR_JDBC_USERNAME=sonar
+SONAR_JDBC_PASSWORD=StrongPassword123!
+```
+
+This password is for the classroom lab only. Do not reuse it for a real system.
+
+Protect the file:
+
+```bash
+chmod 600 .env
+```
+
+---
+
+# 5. Create docker-compose.yaml
+
+Create:
+
+```text
+docker-compose.yaml
+```
+
+Add:
+
+```yaml
+services:
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    ports:
+      - "9000:9000"
+
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://postgres:5432/sonarqube
+      SONAR_JDBC_USERNAME: ${SONAR_JDBC_USERNAME}
+      SONAR_JDBC_PASSWORD: ${SONAR_JDBC_PASSWORD}
+
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+
+    restart: unless-stopped
+
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 131072
+      nproc:
+        soft: 8192
+        hard: 8192
+
+  postgres:
+    image: postgres:16
+    container_name: sonarqube-postgres
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    restart: unless-stopped
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  postgresql_data:
+```
+
+---
+
+# 6. Start SonarQube
+
+From inside `~/sonarqube`:
+
+```bash
+sudo docker compose up -d
+```
+
+Check the containers:
+
+```bash
+sudo docker compose ps
+```
+
+You should eventually see both PostgreSQL and SonarQube running.
+
+To watch SonarQube starting:
+
+```bash
+sudo docker compose logs -f sonarqube
+```
+
+Use `Ctrl+C` to stop watching the logs. This does **not** stop SonarQube.
+
+---
+
+# 7. Open SonarQube
+
+In your browser go to:
+
+```text
+http://SONAR-PUBLIC-IP:9000
+```
+
+For example:
+
+```text
+http://54.123.45.67:9000
+```
+
+Initial login:
+
+```text
+username: admin
+password: admin
+```
+
+Change the password when prompted.
+
+---
+
+# 8. Create a SonarQube token
+
+In SonarQube:
+
+**Top-right account menu → My Account → Security**
+
+Generate a user token.
+
+Copy the token immediately.
+
+---
+
+# 9. Add the token to Jenkins
+
+In Jenkins add a new credential:
+
+```text
+Kind: Secret text
+Secret: <your SonarQube token>
+ID: sonarqube-token
+```
+
+The ID must be exactly:
+
+```text
+sonarqube-token
+```
+
+---
+
+# 10. Test Jenkins → SonarQube connectivity
+
+Use the **SonarQube PRIVATE IP**, not its public IP.
+
+From the Jenkins machine/node, test:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://SONAR-PRIVATE-IP:9000
+```
+
+For example:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://172.31.35.75:9000
+```
+
+Expected result:
+
+```text
+200
+```
+
+If you do not receive `200`, check:
+
+* SonarQube is running.
+* You used the **private IP**.
+* Port `9000` on the SonarQube security group allows traffic from Jenkins.
+* Jenkins and SonarQube can communicate through the VPC.
+
+The Jenkins node which runs the pipeline must also be capable of running:
+
+```bash
+docker run
+```
+
+because we will run the SonarScanner using Docker.
+
+---
+
+# 11. Jenkins Pipeline Example
+
+Replace both IP addresses below.
+
+* `SONAR_HOST_URL` = SonarQube **private IP** — Jenkins uses this.
+* `SONAR_PUBLIC_URL` = SonarQube **public IP** — you use this in your browser.
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        SONAR_HOST_URL    = "http://<SONAR_PRIVATE_IP>:9000"
+        SONAR_PUBLIC_URL  = "http://<SONAR_PUBLIC_IP>:9000"
+        SONAR_PROJECT_KEY = "flask-app"
+    }
+
+    stages {
+
+        stage('SonarQube Scan') {
+            steps {
+                withCredentials([
+                    string(
+                        credentialsId: 'sonarqube-token',
+                        variable: 'SONAR_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        docker run --rm \
+                            -e SONAR_HOST_URL="$SONAR_HOST_URL" \
+                            -e SONAR_TOKEN="$SONAR_TOKEN" \
+                            -v "$WORKSPACE:/usr/src" \
+                            sonarsource/sonar-scanner-cli \
+                            -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
+                            -Dsonar.sources=. \
+                            -Dsonar.exclusions=".venv/**,venv/**,__pycache__/**,**/*.pyc"
+                    '''
+                }
+            }
+        }
+
+        stage('Manual Quality Gate Check') {
+            steps {
+                input(
+                    message: "Check the Quality Gate in SonarQube: ${SONAR_PUBLIC_URL}",
+                    ok: "Proceed"
+                )
+            }
+        }
+    }
+}
+```
+
+Run the pipeline.
+
+The scanner should send the analysis to SonarQube.
+
+Open:
+
+```text
+http://SONAR-PUBLIC-IP:9000
+```
+
+You should now be able to see the `flask-app` project and inspect:
+
+* Issues
+* Reliability
+* Security
+* Maintainability
+* Security Hotspots
+* Quality Gate
+
+## Important
+
+The final Jenkins stage above is a **manual check**.
+
+Jenkins is pausing while you open SonarQube and inspect the Quality Gate yourself. It is **not yet automatically reading the Quality Gate result from SonarQube**.
+
+We will automate that integration separately.
