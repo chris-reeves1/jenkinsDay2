@@ -77,16 +77,63 @@ pipeline{
                     }
                 }
             }
+            stage("build metadata"){
+                steps{
+                    sh """
+                        COMMIT_HASH="\$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+                    COMMIT_SHORT="\$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+                    BRANCH_NAME_VALUE="\$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+
+                    cat > build-metadata.json <<EOF
+                    {
+                      "commit_hash": "\${COMMIT_HASH}",
+                      "commit_short": "\${COMMIT_SHORT}",
+                      "branch_name": "\${BRANCH_NAME_VALUE}",
+                      "build_number": "${BUILD_NUMBER}",
+                      "jenkins_job": "${JOB_NAME}",
+                      "build_url": "${BUILD_URL}",
+                      "original_image": "${ORIGINAL_IMAGE}",
+                      "slim_image": "${SLIM_IMAGE}",
+                      "nginx_image": "${NGINX_IMAGE}",
+                      "dockerhub_repo": "${DOCKERHUB_REPO}"
+                    }
+                    EOF
+
+                    cat build-metadata.json 
+                    """
+                        // cat > means override stdout
+                        // <<EOF send this to cat
+                        // cat > file <<EOF == write this to the file
+
+                }
+                post{
+                    always{
+                        archiveArtifacts artifacts: "build-metadata.json", allowEmptyArchive: true
+                    }
+                }
+            }
+            stage("Image builds in parallel"){
+                parallel{
+                    stage("build flask-app"){
+                        steps{
+                            sh """
+                                docker build -t ${ORIGINAL_IMAGE} .
+                            """
+                        }
+                    }
+                    stage("build nginx"){
+                        steps{
+                            sh """
+                                docker build -t ${NGINX_IMAGE} -f Dockerfile.nginx
+                            """
+                        }
+                    }
+                }
+            }
         }
     }
 
-// stages:
-//     - init (rm commands and build networks/volumes if needed)
-    
-//     - parallel stage:
-//                 trivy fs scan
-//                 unit test
-//                 sonarqube: add gate in sqube to fail otherwise manual aporoval gate needed.
+
 
 //     - build metadata
 
