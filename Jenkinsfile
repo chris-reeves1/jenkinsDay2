@@ -309,20 +309,41 @@ pipeline {
                 )
             }
         }
+        stage("Push to Dockerhub") {
+                    steps {
+                        sh """
+                            echo "${DOCKERHUB_CREDENTIALS_PSW}" | docker login -u "${DOCKERHUB_CREDENTIALS_USR}" --password-stdin
 
-    }
-}
+                            docker tag ${FINAL_IMAGE} ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                            docker tag ${FINAL_IMAGE} ${DOCKERHUB_REPO}:latest
+
+                            docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                            docker push ${DOCKERHUB_REPO}:latest
+                        """
+                    }
+                }
+            }
+
+            post {
+
+                success {
+                    echo "completed successfully"
+                }
+
+                failure {
+                    echo "pipeline failed"
+                }
+
+                always {
+                    sh """
+                        docker rm -f flask-app mynginx 2>/dev/null || true
+                        docker network rm new-network 2>/dev/null || true
+                    """
+                }
+            }
+        }
 
 
 
 
 
-
-//     - manual approval gate? 
-
-//     - run + smoke test 
-
-//     - Push to dockerhub
-
-//     - post actions 
-// }
