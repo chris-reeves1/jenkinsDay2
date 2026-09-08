@@ -113,7 +113,7 @@ LABEL org.opencontainers.image.title="Some app" \
 # Creates a new system user named appuser, Assigns user ID 10001.
 # -r == no home directory or login.
 # -s /usr/sbin/nologin -- cant log into a shell at all!
-RUN useradd -u 10001 -r -m -d /home/appuser -s /usr/sbin/nologin appuser \
+RUN useradd -u 10001 -m -d /home/appuser -s /usr/sbin/nologin appuser \
  && chmod +x /app/run.sh \
  && chown -R appuser:appuser /app /home/appuser
 # changes ownership of the /app directory to appuser recurrsivly (all files + user and group)

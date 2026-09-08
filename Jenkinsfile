@@ -124,7 +124,7 @@ pipeline{
                     stage("build nginx"){
                         steps{
                             sh """
-                                docker build -t ${NGINX_IMAGE} -f Dockerfile.nginx
+                                docker build -t ${NGINX_IMAGE} -f Dockerfile.nginx . 
                             """
                         }
                     }
