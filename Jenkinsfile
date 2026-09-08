@@ -7,7 +7,7 @@ pipeline{
         ORIGINAL_IMAGE = "flask-app:${BUILD_NUMBER}-original"
         SLIM_IMAGE = "flask-app:${BUILD_NUMBER}-slim"
         DOCKERHUB_REPO = "chrisreeves1/flask-app-1"
-        SOANR_HOST_URL = "http://172.31.23.181:9000"
+        SONAR_HOST_URL = "http://172.31.23.181:9000"
         SONAR_PROJECT_KEY = "flask-app" 
     }
     parameters{
